@@ -10,4 +10,4 @@ All changes
   - add change log
   - [feat] add noblock mode, CONFIG_READLINE_NOBLOCK
   - [feat] add prompt auto refresh, CONFIG_READLINE_REFRESH_PROMPT
-
+  - [fix] disable completion in mask mode

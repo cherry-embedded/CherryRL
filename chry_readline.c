@@ -1587,6 +1587,11 @@ restart:
             case CHRY_READLINE_EXEC_CPLT:
 #if defined(CONFIG_READLINE_COMPLETION) && CONFIG_READLINE_COMPLETION
             {
+                /*!< disable completion in mask mode */
+                if (rl->ln.mask) {
+                    break;
+                }
+
                 int ret = chry_readline_complete(rl);
                 if (ret < 0) {
                     return NULL;
@@ -1609,6 +1614,11 @@ restart:
                     }
                     break;
                 } else {
+                    /*!< disable completion in mask mode */
+                    if (rl->ln.mask) {
+                        break;
+                    }
+
                     int ret = chry_readline_complete(rl);
                     if (ret < 0) {
                         return NULL;

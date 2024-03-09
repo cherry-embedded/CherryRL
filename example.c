@@ -235,7 +235,7 @@ int main(int argc, char **argv)
             printf("chry_readline error\r\n");
             break;
         } else if (line == (void *)-1) {
-            if(taskcnt++ > 1000*10000){
+            if (taskcnt++ > 1000 * 10000) {
                 printf("other task\r\n");
                 taskcnt = 0;
             }
@@ -260,8 +260,10 @@ int main(int argc, char **argv)
                 }
 
             } else if (strncmp(line, "/exit", linesize) == 0) {
-                disableRawMode(STDIN_FILENO);
-                return 0;
+                if (linesize == strlen("/exit")) {
+                    disableRawMode(STDIN_FILENO);
+                    return 0;
+                }
             }
         }
     }
@@ -296,8 +298,10 @@ repl:
                 printf("len = %2d <'%s'>\r\n", linesize, line);
 
                 if (strncmp(line, "/exit", linesize) == 0) {
-                    disableRawMode(STDIN_FILENO);
-                    return 0;
+                    if (linesize == strlen("/exit")) {
+                        disableRawMode(STDIN_FILENO);
+                        return 0;
+                    }
                 }
             }
         } else {
