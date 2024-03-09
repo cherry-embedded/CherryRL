@@ -63,6 +63,20 @@ extern "C" {
 #define CONFIG_READLINE_ALTMAP 0
 #endif
 
+#ifndef CONFIG_READLINE_REFRESH_PROMPT
+#define CONFIG_READLINE_REFRESH_PROMPT 0
+#endif
+
+#ifndef CONFIG_READLINE_NOBLOCK
+#define CONFIG_READLINE_NOBLOCK 0
+#endif
+
+#if defined(CONFIG_READLINE_XTERM) && defined(CONFIG_READLINE_NOBLOCK)
+#if CONFIG_READLINE_XTERM && CONFIG_READLINE_NOBLOCK
+#error "CONFIG_READLINE_XTERM cannot be configured at the same time as CONFIG_READLINE_NOBLOCK"
+#endif
+#endif
+
 #ifndef CONFIG_READLINE_HELP
 #define CONFIG_READLINE_HELP                                    \
     "\r\n"                                                      \
@@ -158,6 +172,10 @@ typedef struct
 
 #if defined(CONFIG_READLINE_PROMPTEDIT) && CONFIG_READLINE_PROMPTEDIT
     uint8_t pptseglen[CONFIG_READLINE_PROMPTSEG + 1];
+#endif
+
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    uint8_t noblock;
 #endif
 
 } chry_readline_t;

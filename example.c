@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <termios.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "chry_readline.h"
 
@@ -162,6 +163,17 @@ int main(int argc, char **argv)
 
     enableRawMode(STDIN_FILENO);
 
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    if (flags == -1) {
+        perror("fcntl");
+        return 1;
+    }
+
+    if (fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl");
+        return 1;
+    }
+
     char prompt[256];
     char history[256];
 
@@ -215,9 +227,19 @@ int main(int argc, char **argv)
     }
 
     uint8_t i = 0;
+    uint32_t taskcnt = 0;
 
-    while ((line = chry_readline(&rl, linebuf, sizeof(linebuf), &linesize)) != NULL) {
-        if (linesize) {
+    while (1) {
+        line = chry_readline(&rl, linebuf, sizeof(linebuf), &linesize);
+        if (line == NULL) {
+            printf("chry_readline error\r\n");
+            break;
+        } else if (line == (void *)-1) {
+            if(taskcnt++ > 1000*10000){
+                printf("other task\r\n");
+                taskcnt = 0;
+            }
+        } else if (linesize) {
             printf("len = %2d <'%s'>\r\n", linesize, line);
 
             if (strncmp(line, "/mask", linesize) == 0) {

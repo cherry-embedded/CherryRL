@@ -21,6 +21,19 @@
             ;                               \
     } while (0)
 
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+
+#define chry_readline_getkey(__rl, __c)                \
+    do {                                               \
+        (__rl)->noblock = 0 == (__rl)->sget((__c), 1); \
+    } while (0)
+
+#else
+
+#define chry_readline_getkey chry_readline_waitkey
+
+#endif
+
 #if defined(CONFIG_READLINE_DEBUG) && CONFIG_READLINE_DEBUG
 
 #define CHRY_READLINE_PARAM_CHECK(__expr, __ret) \
@@ -534,10 +547,19 @@ int chry_readline_edit_refresh(chry_readline_t *rl)
         linesize -= (pptoff + linesize) - rl->term.col;
     }
 
-    /*!< move to prompt end */
     idx = 0;
+
+#if defined(CONFIG_READLINE_REFRESH_PROMPT) && CONFIG_READLINE_REFRESH_PROMPT
+    /*!< move to line start */
+    chry_readline_seqgen_cursor_absolute(seq, &idx, 0);
+    chry_readline_put(rl, seq, idx, -1);
+    /*!< output prompt */
+    chry_readline_put(rl, rl->prompt, rl->ln.pptlen, NULL);
+#else
+    /*!< move to prompt end */
     chry_readline_seqgen_cursor_absolute(seq, &idx, pptoff + 1);
     chry_readline_put(rl, seq, idx, -1);
+#endif
 
     if (!rl->ln.mask) {
         /*!< output linebuff */
@@ -903,6 +925,7 @@ static int chry_readline_seqexec_pcsi(chry_readline_t *rl, uint8_t *csiend, uint
     uint8_t csibuf[8];
     uint8_t *pbuf = csibuf;
 
+    /*!< should have buffered key or it will be blocked */
     chry_readline_waitkey(rl, pbuf);
 
     if (('0' <= *pbuf) && (*pbuf <= '9')) {
@@ -916,6 +939,7 @@ static int chry_readline_seqexec_pcsi(chry_readline_t *rl, uint8_t *csiend, uint
     }
 
     for (;;) {
+        /*!< should have buffered key or it will be blocked */
         chry_readline_waitkey(rl, pbuf);
 
         if (('0' <= *pbuf) && (*pbuf <= '9')) {
@@ -984,6 +1008,7 @@ static int chry_readline_seqexec_alt(chry_readline_t *rl, uint8_t *c, uint16_t *
 *****************************************************************************/
 static int chry_readline_seqexec_o(chry_readline_t *rl, uint8_t *c, uint16_t *pns)
 {
+    /*!< should have buffered key or it will be blocked */
     chry_readline_waitkey(rl, c);
 
     return chry_readline_dispatch_o(rl, c, pns);
@@ -1000,6 +1025,7 @@ static int chry_readline_seqexec_o(chry_readline_t *rl, uint8_t *c, uint16_t *pn
 *****************************************************************************/
 static int chry_readline_seqexec(chry_readline_t *rl, uint8_t *c, uint16_t *pns)
 {
+    /*!< should have buffered key or it will be blocked */
     chry_readline_waitkey(rl, c);
 
     switch (*c) {
@@ -1373,6 +1399,12 @@ __unused static int chry_readline_wait_altscreen(chry_readline_t *rl)
 *****************************************************************************/
 static char *chry_readline_inernal(chry_readline_t *rl)
 {
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    if (rl->noblock) {
+        goto restore;
+    }
+#endif
+
 #if defined(CONFIG_READLINE_XTERM) && CONFIG_READLINE_XTERM
     /*!< wait switch to altscreen */
     if (rl->term.altnsupt == 0) {
@@ -1400,8 +1432,18 @@ restart:
         }
 #endif
 
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    restore:
+#endif
+
         /*!< get a key */
-        chry_readline_waitkey(rl, &c);
+        chry_readline_getkey(rl, &c);
+
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+        if (rl->noblock) {
+            return NULL;
+        }
+#endif
 
         if (c & 0x80) {
             /*!< not support 8bit code */
@@ -1782,6 +1824,12 @@ char *chry_readline(chry_readline_t *rl, char *linebuff, uint32_t buffsize, uint
         return NULL;
     }
 
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    if (rl->noblock) {
+        goto restore;
+    }
+#endif
+
     rl->ln.buff = (void *)linebuff;
     rl->ln.buff->size = 0;
     rl->ln.lnmax = buffsize - 3; /*!< reserved for \0 and size */
@@ -1794,7 +1842,17 @@ char *chry_readline(chry_readline_t *rl, char *linebuff, uint32_t buffsize, uint
     /*!< calculate prompt offset and size */
     chry_readline_calculate_prompt(rl);
 
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+restore:
+#endif
+
     ret = chry_readline_inernal(rl);
+
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    if (rl->noblock) {
+        return (void *)-1;
+    }
+#endif
 
     /*!< new line */
     chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, NULL);
@@ -1869,6 +1927,10 @@ int chry_readline_init(chry_readline_t *rl, chry_readline_init_t *init)
 
 #if defined(CONFIG_READLINE_ALTMAP) && CONFIG_READLINE_ALTMAP
     memcpy(rl->altmap, altmap, sizeof(altmap));
+#endif
+
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    rl->noblock = false;
 #endif
 
     return 0;
