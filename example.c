@@ -6,6 +6,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <assert.h>
 
 #include "chry_readline.h"
 
@@ -61,9 +62,10 @@ fatal:
     return -1;
 }
 
-static uint16_t sput(void *data, uint16_t size)
+static uint16_t sput(chry_readline_t *rl, void *data, uint16_t size)
 {
     uint16_t i;
+    (void)rl;
     for (i = 0; i < size; i++) {
         if (1 != write(STDOUT_FILENO, (uint8_t *)data + i, 1)) {
             break;
@@ -73,9 +75,10 @@ static uint16_t sput(void *data, uint16_t size)
     return i;
 }
 
-static uint16_t sget(void *data, uint16_t size)
+static uint16_t sget(chry_readline_t *rl, void *data, uint16_t size)
 {
     uint16_t i;
+    (void)rl;
     for (i = 0; i < size; i++) {
         if (1 != read(STDIN_FILENO, (uint8_t *)data + i, 1)) {
             break;
@@ -87,16 +90,18 @@ static uint16_t sget(void *data, uint16_t size)
 
 chry_readline_t rl;
 
-static int fcb(uint8_t exec)
+static int fcb(chry_readline_t *rl, uint8_t exec)
 {
+    (void)rl;
+
     fprintf(stderr, "F%d event\r\n", exec - CHRY_READLINE_EXEC_F1 + 1);
     return 0;
 }
 
-static int ucb(uint8_t exec)
+static int ucb(chry_readline_t *rl, uint8_t exec)
 {
     /*!< user event callback will not output newline automatically */
-    chry_readline_newline(&rl);
+    chry_readline_newline(rl);
 
     fprintf(stderr, "U%d event\r\n", exec - CHRY_READLINE_EXEC_USER + 1);
 
@@ -112,7 +117,7 @@ static const char *clist[] = {
     "hello0","hello1","hello2","hello3","hello4","hello5","hello6","hello7","hello8","hello9",
     "hello10","hello11","hello12","hello13","hello14","hello15","hello16","hello17","hello18","hello19",
     "hello20","hello21","hello22","hello23","hello24","hello25","hello26","hello27","hello28","hello29",
-    "hello30","hello31","hello32","hello33","hello34","hello35","hello36","hello37","hello38","hello39",
+    "hello30","hello31","hello32","hello33","hello344444","hello35","hello36","hello37","hello38","hello39",
     "hello40","hello41","hello42","hello43","hello44","hello45","hello46","hello47","hello48","hello49",
     "hello50","hello51","hello52","hello53","hello54","hello55","hello56","hello57","hello58","hello59",
     "hello60","hello61","hello62","hello63","hello64","hello65","hello66","hello67","hello68","hello69",
@@ -121,10 +126,12 @@ static const char *clist[] = {
 };
 // clang-format on
 
-static uint16_t acb(char *pre, uint16_t size, const char **plist[])
+static uint16_t acb(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[])
 {
     static const char *list[128];
     uint16_t count = 0;
+
+    (void)rl;
 
     for (uint32_t i = 0; i < sizeof(clist) / sizeof(char *); i++) {
         if (strncmp(pre, clist[i], size) == 0) {
@@ -192,13 +199,17 @@ int main(int argc, char **argv)
         .sput = sput
     };
 
-    chry_readline_init(&rl, &rl_init);
+    assert(0 == chry_readline_init(&rl, &rl_init));
 
     /*!< the segidx must be incremented at first */
-    chry_readline_prompt_edit(&rl, 0, (chry_readline_sgr_t){ .foreground = CHRY_READLINE_SGR_GREEN, .bold = 1 }.raw, "cherry");
-    chry_readline_prompt_edit(&rl, 1, 0, ":");
-    chry_readline_prompt_edit(&rl, 2, (chry_readline_sgr_t){ .foreground = CHRY_READLINE_SGR_BLUE, .bold = 1 }.raw, "~");
-    chry_readline_prompt_edit(&rl, 3, 0, "$ ");
+    assert(0 == chry_readline_prompt_edit(&rl, 0, (chry_readline_sgr_t){ .foreground = CHRY_READLINE_SGR_GREEN, .bold = 1 }.raw, "cherry"));
+    assert(0 == chry_readline_prompt_edit(&rl, 1, 0, ":"));
+    assert(0 == chry_readline_prompt_edit(&rl, 2, (chry_readline_sgr_t){ .foreground = CHRY_READLINE_SGR_BLUE, .bold = 1 }.raw, "~"));
+    assert(0 == chry_readline_prompt_edit(&rl, 3, 0, "$ "));
+
+#if !CONFIG_READLINE_PROMPTEDIT
+    memcpy(prompt, "nopptedit:~$ ", sizeof("nopptedit:~$ "));
+#endif
 
     if (keycode) {
         chry_readline_debug(&rl);
@@ -271,9 +282,14 @@ int main(int argc, char **argv)
     goto end;
 
 repl:
+    if (!CONFIG_READLINE_PROMPTEDIT) {
+        printf("repl example, must enable CONFIG_READLINE_PROMPTEDIT\r\n");
+        return 0;
+    }
+
     printf("enter repl test mode, end with ':' to enter multiline mode\r\n");
     chry_readline_prompt_clear(&rl);
-    chry_readline_prompt_edit(&rl, 0, 0, ">>> ");
+    assert(0 == chry_readline_prompt_edit(&rl, 0, 0, ">>> "));
 
     /*!< map ctrl+i(tab) to auto completion or space */
     chry_readline_set_ctrlmap(&rl, CHRY_READLINE_CTRLMAP_I, CHRY_READLINE_EXEC_ACPLT);
@@ -286,7 +302,7 @@ repl:
         if (linesize) {
             if (line[linesize - 1] == ':') {
                 multienable = true;
-                chry_readline_prompt_edit(&rl, 0, 0, "... ");
+                assert(0 == chry_readline_prompt_edit(&rl, 0, 0, "... "));
             }
 
             if (++linecount > 32) {
@@ -310,7 +326,7 @@ repl:
              * followed by the input content and ending \0. \0 is not included in the linesize
             */
             if (multienable) {
-                chry_readline_prompt_edit(&rl, 0, 0, ">>> ");
+                assert(0 == chry_readline_prompt_edit(&rl, 0, 0, ">>> "));
 
                 for (int i = 0; i < linecount; i++) {
                     printf("%3d %s\r\n", *((uint16_t *)multibuff[i]), &multibuff[i][2]);

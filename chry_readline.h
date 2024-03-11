@@ -107,11 +107,10 @@ enum {
     CHRY_READLINE_SGR_DEFAULT = 10
 };
 
-typedef struct
-{
+typedef struct chry_readline {
     char *prompt; /*!< prompt pointer */
-    uint16_t (*sput)(void *, uint16_t);
-    uint16_t (*sget)(void *, uint16_t);
+    uint16_t (*sput)(struct chry_readline *rl, void *data, uint16_t size);
+    uint16_t (*sget)(struct chry_readline *rl, void *data, uint16_t size);
 
     struct
     {
@@ -143,7 +142,7 @@ typedef struct
 
 #if defined(CONFIG_READLINE_COMPLETION) && CONFIG_READLINE_COMPLETION
     struct {
-        uint16_t (*acb)(char *pre, uint16_t size, const char **plist[]);
+        uint16_t (*acb)(struct chry_readline *rl, char *pre, uint16_t size, const char **plist[]);
     } cplt;
 #endif
 
@@ -159,8 +158,8 @@ typedef struct
     } hist;
 #endif
 
-    int (*fcb)(uint8_t exec);
-    int (*ucb)(uint8_t exec);
+    int (*fcb)(struct chry_readline *rl, uint8_t exec);
+    int (*ucb)(struct chry_readline *rl, uint8_t exec);
 
 #if defined(CONFIG_READLINE_CTRLMAP) && CONFIG_READLINE_CTRLMAP
     uint8_t ctrlmap[32];
@@ -185,8 +184,8 @@ typedef struct {
     uint16_t pptsize;  /*!< prompt buffer size */
     char *history;     /*!< history buffer pointer */
     uint16_t histsize; /*!< history buffer size, must be a power of 2 */
-    uint16_t (*sput)(void *, uint16_t);
-    uint16_t (*sget)(void *, uint16_t);
+    uint16_t (*sput)(chry_readline_t *rl, void *, uint16_t);
+    uint16_t (*sget)(chry_readline_t *rl, void *, uint16_t);
 } chry_readline_init_t;
 
 typedef struct
@@ -230,9 +229,9 @@ extern void chry_readline_clear(chry_readline_t *rl);
 extern void chry_readline_mask(chry_readline_t *rl, uint8_t enable);
 extern int chry_readline_altscreen(chry_readline_t *rl, uint8_t enable);
 
-extern void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(char *pre, uint16_t size, const char **plist[]));
-extern void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(uint8_t exec));
-extern void chry_readline_set_user_cb(chry_readline_t *rl, int (*ucb)(uint8_t exec));
+extern void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[]));
+extern void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(chry_readline_t *rl, uint8_t exec));
+extern void chry_readline_set_user_cb(chry_readline_t *rl, int (*ucb)(chry_readline_t *rl, uint8_t exec));
 extern void chry_readline_set_ctrlmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec);
 extern void chry_readline_set_altmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec);
 

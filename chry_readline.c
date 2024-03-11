@@ -15,17 +15,17 @@
 #define __unused
 #endif
 
-#define chry_readline_waitkey(__rl, __c)    \
-    do {                                    \
-        while (0 == (__rl)->sget((__c), 1)) \
-            ;                               \
+#define chry_readline_waitkey(__rl, __c)            \
+    do {                                            \
+        while (0 == (__rl)->sget((__rl), (__c), 1)) \
+            ;                                       \
     } while (0)
 
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
 
-#define chry_readline_getkey(__rl, __c)                \
-    do {                                               \
-        (__rl)->noblock = 0 == (__rl)->sget((__c), 1); \
+#define chry_readline_getkey(__rl, __c)                        \
+    do {                                                       \
+        (__rl)->noblock = 0 == (__rl)->sget((__rl), (__c), 1); \
     } while (0)
 
 #else
@@ -43,12 +43,12 @@
         }                                        \
     } while (0)
 
-#define chry_readline_put(__rl, __pbuf, __size, __ret)  \
-    do {                                                \
-        uint16_t _size_ = (__size);                     \
-        if (_size_ != (__rl)->sput((__pbuf), _size_)) { \
-            return (__ret);                             \
-        }                                               \
+#define chry_readline_put(__rl, __pbuf, __size, __ret)          \
+    do {                                                        \
+        uint16_t _size_ = (__size);                             \
+        if (_size_ != (__rl)->sput((__rl), (__pbuf), _size_)) { \
+            return __ret;                                       \
+        }                                                       \
     } while (0)
 
 #else
@@ -57,7 +57,7 @@
 
 #define chry_readline_put(__rl, __pbuf, __size, __ret) \
     do {                                               \
-        (__rl)->sput((__pbuf), (__size));              \
+        (__rl)->sput((__rl), (__pbuf), (__size));      \
     } while (0)
 
 #endif
@@ -554,7 +554,7 @@ int chry_readline_edit_refresh(chry_readline_t *rl)
     chry_readline_seqgen_cursor_absolute(seq, &idx, 0);
     chry_readline_put(rl, seq, idx, -1);
     /*!< output prompt */
-    chry_readline_put(rl, rl->prompt, rl->ln.pptlen, NULL);
+    chry_readline_put(rl, rl->prompt, rl->ln.pptlen, -1);
 #else
     /*!< move to prompt end */
     chry_readline_seqgen_cursor_absolute(seq, &idx, pptoff + 1);
@@ -1251,7 +1251,7 @@ int chry_readline_complete(chry_readline_t *rl)
     if (rl->cplt.acb) {
         chry_readline_edit_getword(rl, &pre, &word_size);
 
-        if ((count = rl->cplt.acb(pre, word_size, &list)) == 0) {
+        if ((count = rl->cplt.acb(rl, pre, word_size, &list)) == 0) {
             /*!< if no completions, return */
             return 0;
         }
@@ -1315,7 +1315,7 @@ int chry_readline_complete(chry_readline_t *rl)
         uint16_t row_count = (count + col_count - 1) / col_count;
 
         for (uint16_t row = 0; row < row_count; row++) {
-            chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, NULL);
+            chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, -1);
 
             for (int col = 0; col < col_count; col++) {
                 int idx = (col * row_count) + row;
@@ -1334,9 +1334,10 @@ int chry_readline_complete(chry_readline_t *rl)
         }
     }
 
-    chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, NULL);
+    chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, -1);
     return 1;
 #else
+    (void)rl;
     return 0;
 #endif
 }
@@ -1369,6 +1370,11 @@ static void chry_readline_calculate_prompt(chry_readline_t *rl)
         }
 
         rl->ln.pptlen++;
+        if (rl->ln.pptlen >= rl->ln.pptsize) {
+            rl->ln.pptlen = 0;
+            rl->ln.pptoff = 0;
+            return;
+        }
     }
 }
 
@@ -1657,7 +1663,7 @@ restart:
                 chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, NULL);
 
                 if (rl->fcb) {
-                    if (rl->fcb(c)) {
+                    if (rl->fcb(rl, c)) {
                         return NULL;
                     }
                 }
@@ -1665,7 +1671,7 @@ restart:
 
             default:
                 if (rl->ucb) {
-                    int ret = rl->ucb(c);
+                    int ret = rl->ucb(rl, c);
                     if (ret == 0) {
                         goto restart;
                     } else if (ret < 0) {
@@ -1892,7 +1898,9 @@ int chry_readline_init(chry_readline_t *rl, chry_readline_init_t *init)
     CHRY_READLINE_PARAM_CHECK(NULL != init->sget, -1);
     CHRY_READLINE_PARAM_CHECK(NULL != init->sput, -1);
     CHRY_READLINE_PARAM_CHECK(NULL != init->prompt, -1);
+#if defined(CONFIG_READLINE_HISTORY) && CONFIG_READLINE_HISTORY
     CHRY_READLINE_PARAM_CHECK(NULL != init->history, -1);
+#endif
 
     if ((init->histsize < 2) || (init->histsize & (init->histsize - 1))) {
         return -1;
@@ -1958,7 +1966,7 @@ void chry_readline_detect(chry_readline_t *rl)
     uint16_t pn[4];
 
     /*!< test sput and get screen size */
-    if (5 != rl->sput("\e[18t", 5)) {
+    if (5 != rl->sput(rl, "\e[18t", 5)) {
         return;
     }
 
@@ -1978,7 +1986,7 @@ void chry_readline_detect(chry_readline_t *rl)
 * @param[in]    acb         callback
 * 
 *****************************************************************************/
-void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(char *pre, uint16_t size, const char **plist[]))
+void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[]))
 {
     (void)rl;
     (void)acb;
@@ -1994,7 +2002,7 @@ void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(char *
 * @param[in]    fcb         callback
 * 
 *****************************************************************************/
-void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(uint8_t exec))
+void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(chry_readline_t *rl, uint8_t exec))
 {
     rl->fcb = fcb;
 }
@@ -2006,7 +2014,7 @@ void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(uint8_t exec)
 * @param[in]    ucb         callback
 * 
 *****************************************************************************/
-void chry_readline_set_user_cb(chry_readline_t *rl, int (*ucb)(uint8_t exec))
+void chry_readline_set_user_cb(chry_readline_t *rl, int (*ucb)(chry_readline_t *rl, uint8_t exec))
 {
     rl->ucb = ucb;
 }
@@ -2106,6 +2114,7 @@ void chry_readline_debug(chry_readline_t *rl)
 *****************************************************************************/
 int chry_readline_prompt_edit(chry_readline_t *rl, uint8_t segidx, uint16_t sgrraw, const char *format, ...)
 {
+#if defined(CONFIG_READLINE_PROMPTEDIT) && CONFIG_READLINE_PROMPTEDIT
     va_list ap;
     char sgrbuf[17];
     uint16_t pptlen;
@@ -2212,6 +2221,13 @@ int chry_readline_prompt_edit(chry_readline_t *rl, uint8_t segidx, uint16_t sgrr
     } else {
         return 0;
     }
+#else
+    (void)rl;
+    (void)segidx;
+    (void)sgrraw;
+    (void)format;
+    return 0;
+#endif
 }
 
 /*****************************************************************************
@@ -2224,5 +2240,7 @@ void chry_readline_prompt_clear(chry_readline_t *rl)
 {
 #if defined(CONFIG_READLINE_PROMPTEDIT) && CONFIG_READLINE_PROMPTEDIT
     memset(rl->pptseglen, 0, CONFIG_READLINE_PROMPTSEG + 1);
+#else
+    (void)rl;
 #endif
 }
