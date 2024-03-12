@@ -90,20 +90,43 @@ static uint16_t sget(chry_readline_t *rl, void *data, uint16_t size)
 
 chry_readline_t rl;
 
-static int fcb(chry_readline_t *rl, uint8_t exec)
-{
-    (void)rl;
-
-    fprintf(stderr, "F%d event\r\n", exec - CHRY_READLINE_EXEC_F1 + 1);
-    return 0;
-}
-
 static int ucb(chry_readline_t *rl, uint8_t exec)
 {
     /*!< user event callback will not output newline automatically */
     chry_readline_newline(rl);
 
-    fprintf(stderr, "U%d event\r\n", exec - CHRY_READLINE_EXEC_USER + 1);
+    switch (exec) {
+        case CHRY_READLINE_EXEC_EOF:
+            fprintf(stderr, "EOF\r\n");
+            disableRawMode(STDIN_FILENO);
+            exit(0);
+            break;
+        case CHRY_READLINE_EXEC_SIGINT:
+            chry_readline_ignore(rl, false);
+            fprintf(stderr, "SIGINT\r\n");
+            break;
+        case CHRY_READLINE_EXEC_SIGQUIT:
+            fprintf(stderr, "SIGQUIT\r\n");
+            break;
+        case CHRY_READLINE_EXEC_SIGCONT:
+            fprintf(stderr, "SIGCONT\r\n");
+            break;
+        case CHRY_READLINE_EXEC_SIGSTOP:
+            fprintf(stderr, "SIGSTOP\r\n");
+            break;
+        case CHRY_READLINE_EXEC_SIGTSTP:
+            fprintf(stderr, "SIGTSTP\r\n");
+            break;
+        case CHRY_READLINE_EXEC_F1 ... CHRY_READLINE_EXEC_F12:
+            fprintf(stderr, "F%d event\r\n", exec - CHRY_READLINE_EXEC_F1 + 1);
+            break;
+        case CHRY_READLINE_EXEC_USER ... CHRY_READLINE_EXEC_END:
+            fprintf(stderr, "U%d event\r\n", exec - CHRY_READLINE_EXEC_USER + 1);
+            break;
+        default:
+            fprintf(stderr, "ERROR EXEC %d\r\n", exec);
+            return -1;
+    }
 
     /*!< return 1 will not refresh */
     /*!< return 0 to refresh whole line (include prompt) */
@@ -113,7 +136,7 @@ static int ucb(chry_readline_t *rl, uint8_t exec)
 
 // clang-format off
 static const char *clist[] = {
-    "hello", "world", "hell", "/exit", "/mask", "/unmask", "/prompt",
+    "hello", "world", "hell", "/exit", "/mask", "/unmask", "/prompt","/ignore",
     "hello0","hello1","hello2","hello3","hello4","hello5","hello6","hello7","hello8","hello9",
     "hello10","hello11","hello12","hello13","hello14","hello15","hello16","hello17","hello18","hello19",
     "hello20","hello21","hello22","hello23","hello24","hello25","hello26","hello27","hello28","hello29",
@@ -225,13 +248,12 @@ int main(int argc, char **argv)
 #endif
 
     chry_readline_set_completion_cb(&rl, acb);
-    chry_readline_set_function_cb(&rl, fcb);
     chry_readline_set_user_cb(&rl, ucb);
 
     /*!< mapping ctrl+q to exec user event 1 */
-    chry_readline_set_ctrlmap(&rl, CHRY_READLINE_CTRLMAP_Q, CHRY_READLINE_EXEC_USER);
+    chry_readline_set_ctrlmap(&rl, CHRY_READLINE_CTRLMAP_X, CHRY_READLINE_EXEC_USER);
     /*!< mapping alt+q to exec user event 2 */
-    chry_readline_set_altmap(&rl, CHRY_READLINE_ALTMAP_Q, CHRY_READLINE_EXEC_USER + 1);
+    chry_readline_set_altmap(&rl, CHRY_READLINE_ALTMAP_X, CHRY_READLINE_EXEC_USER + 1);
 
     if (repl) {
         goto repl;
@@ -247,19 +269,21 @@ int main(int argc, char **argv)
             break;
         } else if (line == (void *)-1) {
             if (taskcnt++ > 1000 * 10000) {
+                chry_readline_erase_line(&rl);
                 printf("other task\r\n");
+                chry_readline_edit_refresh(&rl);
                 taskcnt = 0;
             }
         } else if (linesize) {
             printf("len = %2d <'%s'>\r\n", linesize, line);
 
-            if (strncmp(line, "/mask", linesize) == 0) {
+            if (strncmp(line, "/mask", linesize) == 0 && linesize == strlen("/mask")) {
                 chry_readline_mask(&rl, 1);
 
-            } else if (strncmp(line, "/unmask", linesize) == 0) {
+            } else if (strncmp(line, "/unmask", linesize) == 0 && linesize == strlen("/unmask")) {
                 chry_readline_mask(&rl, 0);
 
-            } else if (strncmp(line, "/prompt", linesize) == 0) {
+            } else if (strncmp(line, "/prompt", linesize) == 0 && linesize == strlen("/prompt")) {
                 int ret = chry_readline_prompt_edit(&rl, 2, (chry_readline_sgr_t){ .foreground = CHRY_READLINE_SGR_BLUE, .bold = 1 }.raw, "~/readline/%d", i++);
 
                 if (ret == 1) {
@@ -270,11 +294,12 @@ int main(int argc, char **argv)
                     goto end;
                 }
 
-            } else if (strncmp(line, "/exit", linesize) == 0) {
-                if (linesize == strlen("/exit")) {
-                    disableRawMode(STDIN_FILENO);
-                    return 0;
-                }
+            } else if (strncmp(line, "/exit", linesize) == 0 && linesize == strlen("/exit")) {
+                disableRawMode(STDIN_FILENO);
+                return 0;
+
+            } else if (strncmp(line, "/ignore", linesize) == 0 && linesize == strlen("/ignore")) {
+                chry_readline_ignore(&rl, true);
             }
         }
     }

@@ -16,3 +16,8 @@ All changes
   - [fix] fix some function error return value
   - [fix] fix unused variable warning
   - [fix] fix param check in history disabled mode
+  - [feat] merge function callback and user event callback
+  - [feat] add EXEC EOF_;SIGINT_;EOF;SIGINT;SIGQUIT;SIGCONT;SIGSTOP;SIGTSTP
+  - [feat] add ignore mode
+  - [feat] add erase to end of line api
+  - [feat] add EOF_ to EOF;SIGINT_ to SIGINT auto convert

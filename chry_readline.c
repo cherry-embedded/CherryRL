@@ -141,38 +141,38 @@ static const uint8_t ctrlmap[32] = {
 #else
 static uint8_t ctrlmap[32] = {
 #endif
-    CHRY_READLINE_EXEC_NUL,  /*!< @ NUL */
-    CHRY_READLINE_EXEC_MVHM, /*!< A SOH */
-    CHRY_READLINE_EXEC_MVLT, /*!< B STX */
-    CHRY_READLINE_EXEC_ALN,  /*!< C ETX */
-    CHRY_READLINE_EXEC_DEL,  /*!< D EOT */
-    CHRY_READLINE_EXEC_MVED, /*!< E ENQ */
-    CHRY_READLINE_EXEC_MVRT, /*!< F ACK */
-    CHRY_READLINE_EXEC_ALN,  /*!< G BEL */
-    CHRY_READLINE_EXEC_BS,   /*!< H BS  */
-    CHRY_READLINE_EXEC_CPLT, /*!< I HT  */
-    CHRY_READLINE_EXEC_NLN,  /*!< J LF  */
-    CHRY_READLINE_EXEC_DELN, /*!< K VT  */
-    CHRY_READLINE_EXEC_CLR,  /*!< L FF  */
-    CHRY_READLINE_EXEC_NLN,  /*!< M CR  */
-    CHRY_READLINE_EXEC_NXTH, /*!< N SO  */
-    CHRY_READLINE_EXEC_NLN,  /*!< O SI  */
-    CHRY_READLINE_EXEC_PRVH, /*!< P DLE */
-    CHRY_READLINE_EXEC_NUL,  /*!< Q DC1 */
-    CHRY_READLINE_EXEC_NUL,  /*!< R DC2 */
-    CHRY_READLINE_EXEC_NUL,  /*!< S DC3 */
-    CHRY_READLINE_EXEC_NUL,  /*!< T DC4 */
-    CHRY_READLINE_EXEC_DHLN, /*!< U NAK */
-    CHRY_READLINE_EXEC_NUL,  /*!< V SYN */
-    CHRY_READLINE_EXEC_DLWD, /*!< W ETB */
-    CHRY_READLINE_EXEC_NUL,  /*!< X CAN */
-    CHRY_READLINE_EXEC_NUL,  /*!< Y EM  */
-    CHRY_READLINE_EXEC_ALN,  /*!< Z SUB */
-    CHRY_READLINE_EXEC_NUL,  /*!< [ ESC */
-    CHRY_READLINE_EXEC_NUL,  /*!< \ FS  */
-    CHRY_READLINE_EXEC_NUL,  /*!< ] GS  */
-    CHRY_READLINE_EXEC_SWNM, /*!< ^ RS  */
-    CHRY_READLINE_EXEC_HELP, /*!< - US  */
+    CHRY_READLINE_EXEC_NUL,     /*!< @ NUL */
+    CHRY_READLINE_EXEC_MVHM,    /*!< A SOH */
+    CHRY_READLINE_EXEC_MVLT,    /*!< B STX */
+    CHRY_READLINE_EXEC_SIGINT_, /*!< C ETX */
+    CHRY_READLINE_EXEC_EOF_,    /*!< D EOT */
+    CHRY_READLINE_EXEC_MVED,    /*!< E ENQ */
+    CHRY_READLINE_EXEC_MVRT,    /*!< F ACK */
+    CHRY_READLINE_EXEC_NUL,     /*!< G BEL */
+    CHRY_READLINE_EXEC_BS,      /*!< H BS  */
+    CHRY_READLINE_EXEC_CPLT,    /*!< I HT  */
+    CHRY_READLINE_EXEC_NLN,     /*!< J LF  */
+    CHRY_READLINE_EXEC_DELN,    /*!< K VT  */
+    CHRY_READLINE_EXEC_CLR,     /*!< L FF  */
+    CHRY_READLINE_EXEC_NLN,     /*!< M CR  */
+    CHRY_READLINE_EXEC_NXTH,    /*!< N SO  */
+    CHRY_READLINE_EXEC_NLN,     /*!< O SI  */
+    CHRY_READLINE_EXEC_PRVH,    /*!< P DLE */
+    CHRY_READLINE_EXEC_SIGCONT, /*!< Q DC1 */
+    CHRY_READLINE_EXEC_NUL,     /*!< R DC2 */
+    CHRY_READLINE_EXEC_SIGSTOP, /*!< S DC3 */
+    CHRY_READLINE_EXEC_NUL,     /*!< T DC4 */
+    CHRY_READLINE_EXEC_DHLN,    /*!< U NAK */
+    CHRY_READLINE_EXEC_NUL,     /*!< V SYN */
+    CHRY_READLINE_EXEC_DLWD,    /*!< W ETB */
+    CHRY_READLINE_EXEC_NUL,     /*!< X CAN */
+    CHRY_READLINE_EXEC_NUL,     /*!< Y EM  */
+    CHRY_READLINE_EXEC_SIGTSTP, /*!< Z SUB */
+    CHRY_READLINE_EXEC_NUL,     /*!< [ ESC */
+    CHRY_READLINE_EXEC_SIGQUIT, /*!< \ FS  */
+    CHRY_READLINE_EXEC_NUL,     /*!< ] GS  */
+    CHRY_READLINE_EXEC_SWNM,    /*!< ^ RS  */
+    CHRY_READLINE_EXEC_HELP,    /*!< - US  */
 };
 
 #if defined(CONFIG_READLINE_ALTMAP) && CONFIG_READLINE_ALTMAP
@@ -573,6 +573,27 @@ int chry_readline_edit_refresh(chry_readline_t *rl)
     chry_readline_put(rl, seq, idx, -1);
 
     return 0;
+}
+
+/*****************************************************************************
+* @brief        erase to end of line
+*****************************************************************************/
+void chry_readline_erase_line(chry_readline_t *rl)
+{
+    size_t idx;
+    uint8_t seq[16];
+
+    idx = 0;
+
+    /*!< move to line start */
+    chry_readline_seqgen_cursor_absolute(seq, &idx, 0);
+    chry_readline_put(rl, seq, idx, );
+
+    /*!< erase to end of display and restore cursor */
+    idx = 0;
+    chry_readline_seqgen_erase_display(seq, &idx, 0);
+    chry_readline_seqgen_cursor_absolute(seq, &idx, 0);
+    chry_readline_put(rl, seq, idx, );
 }
 
 /*****************************************************************************
@@ -1458,6 +1479,9 @@ restart:
 
         if (CHRY_READLINE_G0_BEG <= c) {
             if (c <= CHRY_READLINE_G0_END) {
+                if (rl->ignore) {
+                    continue;
+                }
                 /*!< printable characters */
                 if (chry_readline_edit_insert(rl, c)) {
                     return NULL;
@@ -1477,7 +1501,18 @@ restart:
             }
         }
 
-        /*!< hanlder control */
+        if (rl->ignore) {
+            if (c == CHRY_READLINE_EXEC_SIGINT_) {
+                c = CHRY_READLINE_EXEC_SIGINT;
+            }
+
+            if (c < CHRY_READLINE_EXEC_SIGINT || CHRY_READLINE_EXEC_SIGTSTP < c) {
+                continue;
+            }
+        }
+
+    rehandle:
+        /*!< hanlde control */
         switch (c) {
             /*!< ignore */
             case CHRY_READLINE_EXEC_NUL:
@@ -1648,6 +1683,32 @@ restart:
                 rl->ln.buff->size = 0;
                 return rl->ln.buff->pbuf;
 
+            case CHRY_READLINE_EXEC_EOF_:
+                if (rl->ln.buff->size == 0) {
+                    c = CHRY_READLINE_EXEC_EOF;
+                    goto rehandle;
+                }
+                if (chry_readline_edit_delete(rl)) {
+                    return NULL;
+                }
+                break;
+
+            case CHRY_READLINE_EXEC_SIGINT_:
+                if (rl->ln.buff->size == 0) {
+                    c = CHRY_READLINE_EXEC_SIGINT;
+                    goto rehandle;
+                } else {
+                    rl->ln.buff->size = 0;
+                    return rl->ln.buff->pbuf;
+                }
+                break;
+
+            case CHRY_READLINE_EXEC_EOF:
+            case CHRY_READLINE_EXEC_SIGINT:
+            case CHRY_READLINE_EXEC_SIGQUIT:
+            case CHRY_READLINE_EXEC_SIGCONT:
+            case CHRY_READLINE_EXEC_SIGSTOP:
+            case CHRY_READLINE_EXEC_SIGTSTP:
             case CHRY_READLINE_EXEC_F1:
             case CHRY_READLINE_EXEC_F2:
             case CHRY_READLINE_EXEC_F3:
@@ -1660,15 +1721,6 @@ restart:
             case CHRY_READLINE_EXEC_F10:
             case CHRY_READLINE_EXEC_F11:
             case CHRY_READLINE_EXEC_F12:
-                chry_readline_put(rl, CONFIG_READLINE_NEWLINE, sizeof(CONFIG_READLINE_NEWLINE) ? sizeof(CONFIG_READLINE_NEWLINE) - 1 : 0, NULL);
-
-                if (rl->fcb) {
-                    if (rl->fcb(rl, c)) {
-                        return NULL;
-                    }
-                }
-                goto restart;
-
             default:
                 if (rl->ucb) {
                     int ret = rl->ucb(rl, c);
@@ -1800,6 +1852,20 @@ void chry_readline_clear(chry_readline_t *rl)
     CHRY_READLINE_PARAM_CHECK(NULL != rl, );
 
     chry_readline_edit_clear(rl);
+}
+
+/*****************************************************************************
+* @brief        enable or disable ignore mode
+* 
+* @param[in]    rl          readline instance
+* @param[in]    enable      ignore enable
+* 
+*****************************************************************************/
+void chry_readline_ignore(chry_readline_t *rl, uint8_t enable)
+{
+    CHRY_READLINE_PARAM_CHECK(NULL != rl, );
+
+    rl->ignore = enable ? 1 : 0;
 }
 
 /*****************************************************************************
@@ -1936,8 +2002,9 @@ int chry_readline_init(chry_readline_t *rl, chry_readline_init_t *init)
     rl->ln.mask = 0;
     rl->ln.pptsize = init->pptsize;
 
-    rl->fcb = NULL;
     rl->ucb = NULL;
+
+    rl->ignore = false;
 
 #if defined(CONFIG_READLINE_CTRLMAP) && CONFIG_READLINE_CTRLMAP
     memcpy(rl->ctrlmap, ctrlmap, sizeof(ctrlmap));
@@ -1993,18 +2060,6 @@ void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(chry_r
 #if defined(CONFIG_READLINE_COMPLETION) && CONFIG_READLINE_COMPLETION
     rl->cplt.acb = acb;
 #endif
-}
-
-/*****************************************************************************
-* @brief        set function 1-12 exec callback
-* 
-* @param[in]    rl          readline instance
-* @param[in]    fcb         callback
-* 
-*****************************************************************************/
-void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(chry_readline_t *rl, uint8_t exec))
-{
-    rl->fcb = fcb;
 }
 
 /*****************************************************************************
@@ -2110,7 +2165,7 @@ void chry_readline_debug(chry_readline_t *rl)
 * @param[in]    format      string end with \0
 * @param[in]    ...         params
 * 
-* @retval int               0:Success -1:Error 1:No space
+* @retval int               0:Success -1:Error -2:No space
 *****************************************************************************/
 int chry_readline_prompt_edit(chry_readline_t *rl, uint8_t segidx, uint16_t sgrraw, const char *format, ...)
 {
@@ -2151,7 +2206,7 @@ int chry_readline_prompt_edit(chry_readline_t *rl, uint8_t segidx, uint16_t sgrr
     sgrlen = chry_readline_sgrset(sgrbuf, sgrraw);
 
     if (freelen < (int)sgrlen) {
-        return 1;
+        return -2;
     }
 
     /*!< if next segment is not used */
@@ -2171,7 +2226,7 @@ int chry_readline_prompt_edit(chry_readline_t *rl, uint8_t segidx, uint16_t sgrr
 
             /*!< end with \e0m\0 */
             memcpy(&(rl->prompt[segoff + sgrlen + freelen]), "\e[m", 4);
-            return 1;
+            return -2;
         } else {
             /*!< set segment len */
             rl->pptseglen[segidx] = sgrlen + seglen;
@@ -2217,7 +2272,7 @@ int chry_readline_prompt_edit(chry_readline_t *rl, uint8_t segidx, uint16_t sgrr
     memcpy(&(rl->prompt[pptlen + actlen]), "\e[m", 4);
 
     if (seglen > freelen) {
-        return 1;
+        return -2;
     } else {
         return 0;
     }

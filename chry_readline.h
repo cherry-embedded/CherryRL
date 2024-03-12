@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 #ifndef CONFIG_READLINE_DFTROW
-#define CONFIG_READLINE_DFTROW 20
+#define CONFIG_READLINE_DFTROW 25
 #endif
 
 #ifndef CONFIG_READLINE_DFTCOL
@@ -64,7 +64,7 @@ extern "C" {
 #endif
 
 #ifndef CONFIG_READLINE_REFRESH_PROMPT
-#define CONFIG_READLINE_REFRESH_PROMPT 0
+#define CONFIG_READLINE_REFRESH_PROMPT 1
 #endif
 
 #ifndef CONFIG_READLINE_NOBLOCK
@@ -158,8 +158,9 @@ typedef struct chry_readline {
     } hist;
 #endif
 
-    int (*fcb)(struct chry_readline *rl, uint8_t exec);
     int (*ucb)(struct chry_readline *rl, uint8_t exec);
+
+    uint8_t ignore; /*!< only accept */
 
 #if defined(CONFIG_READLINE_CTRLMAP) && CONFIG_READLINE_CTRLMAP
     uint8_t ctrlmap[32];
@@ -223,14 +224,15 @@ extern int chry_readline_edit_delword(chry_readline_t *rl);
 
 extern int chry_readline_complete(chry_readline_t *rl);
 
+extern void chry_readline_erase_line(chry_readline_t *rl);
 extern void chry_readline_newline(chry_readline_t *rl);
 extern void chry_readline_detect(chry_readline_t *rl);
 extern void chry_readline_clear(chry_readline_t *rl);
+extern void chry_readline_ignore(chry_readline_t *rl, uint8_t enable);
 extern void chry_readline_mask(chry_readline_t *rl, uint8_t enable);
 extern int chry_readline_altscreen(chry_readline_t *rl, uint8_t enable);
 
 extern void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[]));
-extern void chry_readline_set_function_cb(chry_readline_t *rl, int (*fcb)(chry_readline_t *rl, uint8_t exec));
 extern void chry_readline_set_user_cb(chry_readline_t *rl, int (*ucb)(chry_readline_t *rl, uint8_t exec));
 extern void chry_readline_set_ctrlmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec);
 extern void chry_readline_set_altmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec);

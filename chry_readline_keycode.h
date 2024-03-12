@@ -305,6 +305,14 @@ enum {
     CHRY_READLINE_EXEC_ACPLT,     /*!< Autocomplete or space     */
     CHRY_READLINE_EXEC_SWNM,      /*!< Switch to Normal Screen   */
     CHRY_READLINE_EXEC_HELP,      /*!< Show help                 */
+    CHRY_READLINE_EXEC_EOF_,      /*!< End of file               */
+    CHRY_READLINE_EXEC_SIGINT_,   /*!< SIGINT                    */
+    CHRY_READLINE_EXEC_EOF,       /*!< End of file               */
+    CHRY_READLINE_EXEC_SIGINT,    /*!< SIGINT                    */
+    CHRY_READLINE_EXEC_SIGQUIT,   /*!< SIGQUIT                   */
+    CHRY_READLINE_EXEC_SIGCONT,   /*!< SIGTCONT                  */
+    CHRY_READLINE_EXEC_SIGSTOP,   /*!< SIGSTOP                   */
+    CHRY_READLINE_EXEC_SIGTSTP,   /*!< SIGTSTP                   */
     CHRY_READLINE_EXEC_F1,        /*!< Fucntion 1                */
     CHRY_READLINE_EXEC_F2,        /*!< Fucntion 2                */
     CHRY_READLINE_EXEC_F3,        /*!< Fucntion 3                */
