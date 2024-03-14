@@ -1896,7 +1896,7 @@ void chry_readline_mask(chry_readline_t *rl, uint8_t enable)
 * 
 * @retval char*             line pointer
 *****************************************************************************/
-char *chry_readline(chry_readline_t *rl, char *linebuff, uint32_t buffsize, uint32_t *linesize)
+char *chry_readline(chry_readline_t *rl, char *linebuff, uint16_t buffsize, uint16_t *linesize)
 {
     char *ret;
     CHRY_READLINE_PARAM_CHECK(NULL != rl, NULL);

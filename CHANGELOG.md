@@ -21,3 +21,4 @@ All changes
   - [feat] add ignore mode
   - [feat] add erase to end of line api
   - [feat] add EOF_ to EOF;SIGINT_ to SIGINT auto convert
+  - [fix] chry_readline arg3 arg4 change uint32_t to uint16_t

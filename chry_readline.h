@@ -207,7 +207,7 @@ typedef struct
 
 extern int chry_readline_init(chry_readline_t *rl, chry_readline_init_t *init);
 extern void chry_readline_debug(chry_readline_t *rl);
-extern char *chry_readline(chry_readline_t *rl, char *linebuff, uint32_t buffsize, uint32_t *linesize);
+extern char *chry_readline(chry_readline_t *rl, char *linebuff, uint16_t buffsize, uint16_t *linesize);
 
 extern int chry_readline_edit_refresh(chry_readline_t *rl);
 extern int chry_readline_edit_clear(chry_readline_t *rl);
