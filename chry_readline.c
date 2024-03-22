@@ -604,10 +604,13 @@ int chry_readline_edit_clear(chry_readline_t *rl)
 {
     chry_readline_put(rl, "\e[2J\e[1;1H", 10, -1);
 
+#if defined(CONFIG_READLINE_REFRESH_PROMPT) && CONFIG_READLINE_REFRESH_PROMPT
+    return chry_readline_edit_refresh(rl);
+#else
     /*!< output prompt */
     chry_readline_put(rl, rl->prompt, rl->ln.pptlen, -1);
-
     return chry_readline_edit_refresh(rl);
+#endif
 }
 
 /*****************************************************************************
@@ -1441,11 +1444,19 @@ static char *chry_readline_inernal(chry_readline_t *rl)
 
 restart:
 
-    /*!< output prompt */
-    chry_readline_put(rl, rl->prompt, rl->ln.pptlen, NULL);
+    if (rl->auto_refresh) {
+#if defined(CONFIG_READLINE_REFRESH_PROMPT) && CONFIG_READLINE_REFRESH_PROMPT
+        if (chry_readline_edit_refresh(rl)) {
+            return NULL;
+        }
+#else
+        /*!< output prompt */
+        chry_readline_put(rl, rl->prompt, rl->ln.pptlen, NULL);
 
-    if (chry_readline_edit_refresh(rl)) {
-        return NULL;
+        if (chry_readline_edit_refresh(rl)) {
+            return NULL;
+        }
+#endif
     }
 
     while (1) {
@@ -1869,6 +1880,19 @@ void chry_readline_ignore(chry_readline_t *rl, uint8_t enable)
 }
 
 /*****************************************************************************
+* @brief        enable or disable ignore mode
+* 
+* @param[in]    rl          readline instance
+* @param[in]    enable      ignore enable
+* 
+*****************************************************************************/
+void chry_readline_auto_refresh(chry_readline_t *rl, uint8_t enable)
+{
+    CHRY_READLINE_PARAM_CHECK(NULL != rl, );
+    rl->auto_refresh = enable ? 1 : 0;
+}
+
+/*****************************************************************************
 * @brief        enable or disable mask mode
 * 
 * @param[in]    rl          readline instance
@@ -2005,6 +2029,7 @@ int chry_readline_init(chry_readline_t *rl, chry_readline_init_t *init)
     rl->ucb = NULL;
 
     rl->ignore = false;
+    rl->auto_refresh = true;
 
 #if defined(CONFIG_READLINE_CTRLMAP) && CONFIG_READLINE_CTRLMAP
     memcpy(rl->ctrlmap, ctrlmap, sizeof(ctrlmap));

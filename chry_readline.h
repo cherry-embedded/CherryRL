@@ -160,7 +160,8 @@ typedef struct chry_readline {
 
     int (*ucb)(struct chry_readline *rl, uint8_t exec);
 
-    uint8_t ignore; /*!< only accept */
+    uint8_t ignore;       /*!< only accept */
+    uint8_t auto_refresh; /*!< auto refresh */
 
 #if defined(CONFIG_READLINE_CTRLMAP) && CONFIG_READLINE_CTRLMAP
     uint8_t ctrlmap[32];
@@ -229,6 +230,7 @@ extern void chry_readline_newline(chry_readline_t *rl);
 extern void chry_readline_detect(chry_readline_t *rl);
 extern void chry_readline_clear(chry_readline_t *rl);
 extern void chry_readline_ignore(chry_readline_t *rl, uint8_t enable);
+extern void chry_readline_auto_refresh(chry_readline_t *rl, uint8_t enable);
 extern void chry_readline_mask(chry_readline_t *rl, uint8_t enable);
 extern int chry_readline_altscreen(chry_readline_t *rl, uint8_t enable);
 
