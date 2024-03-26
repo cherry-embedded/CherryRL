@@ -5,7 +5,10 @@ CherryReadLine is a tiny designed readline and libedit replacement specifically 
 ## Feature
 
 - No dynamic memory used
-- Support all single keycodes, including ``F1 - F12``, ``HOME`` and ``END``.
+- Support all single keycodes
+- Support vt map ``F1 - F12`` ``HOME`` ``INSERT`` ``DELETE`` ``END`` ``PAGE UP`` ``PAGE DN`` 
+- Support xterm map ``F1 - F4`` ``UP`` ``DOWN`` ``RIGHT`` ``LEFT`` ``END`` ``HOME``
+- Support EXEC ``CLR`` ``NLN`` ``ALN`` ``DEL`` ``BS`` ``MVRT`` ``MVLT`` ``MVED`` ``MVHM`` ``NXTH`` ``PRVH`` ``DLWD`` ``DHLN`` ``DELN``
 - Support key combination with ``Ctrl + A~Z`` or ``Alt + A~Z``
 - Support history with ``↑`` or ``↓``
 - Support cursor movement with ``delete``, ``←``, ``→``, ``HOME`` or ``END``
@@ -23,3 +26,5 @@ CherryReadLine is a tiny designed readline and libedit replacement specifically 
 - Support map some keycodes for user event
 - Support debug keycodes
 - Support mask mode
+- Support non-block mode
+- Support ignore mode

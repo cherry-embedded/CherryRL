@@ -11,8 +11,14 @@
 #include <stdbool.h>
 #include "chry_readline.h"
 
+#if defined(__CC_ARM) || defined(__CLANG_ARM) || defined(__GNUC__) || defined(__ADSPBLACKFIN__)
+#ifndef __unused
+#define __unused __attribute__((unused))
+#endif
+#else
 #ifndef __unused
 #define __unused
+#endif
 #endif
 
 #define chry_readline_waitkey(__rl, __c)            \
@@ -547,6 +553,8 @@ int chry_readline_edit_refresh(chry_readline_t *rl)
         linesize -= (pptoff + linesize) - rl->term.col;
     }
 
+    linebuff[linesize] = '\0';
+
     idx = 0;
 
 #if defined(CONFIG_READLINE_REFRESH_PROMPT) && CONFIG_READLINE_REFRESH_PROMPT
@@ -765,7 +773,7 @@ int chry_readline_edit_delword(chry_readline_t *rl)
 /*****************************************************************************
 * @brief        get now word
 *****************************************************************************/
-static void chry_readline_edit_getword(chry_readline_t *rl, char **pword, uint16_t *size)
+__unused static void chry_readline_edit_getword(chry_readline_t *rl, char **pword, uint16_t *size)
 {
     uint16_t curoff = rl->ln.curoff;
 
@@ -825,6 +833,7 @@ static int chry_readline_dispatch_csi(chry_readline_t *rl, uint8_t *c, uint16_t 
             rl->term.nsupt = 0;
             rl->term.row = pns[1];
             rl->term.col = pns[2];
+#if defined(CONFIG_READLINE_XTERM) && CONFIG_READLINE_XTERM
             /*!< 1.enter alternate screen buffer <esc>[?47h */
             /*!< 2.clear screen buffer           <esc>[2J   */
             /*!< 3.move cursor to (1,1)          <esc>[1;1H */
@@ -832,6 +841,7 @@ static int chry_readline_dispatch_csi(chry_readline_t *rl, uint8_t *c, uint16_t 
             chry_readline_put(rl, "\e[?47h\e[2J\e[1;1H", 16, -1);
             chry_readline_help(rl);
             chry_readline_put(rl, "\e[?47l", 6, -1);
+#endif
         }
 
         *c = CHRY_READLINE_EXEC_NUL;
@@ -1266,16 +1276,17 @@ static int chry_readline_history_loadnext(chry_readline_t *rl)
 int chry_readline_complete(chry_readline_t *rl)
 {
 #if defined(CONFIG_READLINE_COMPLETION) && CONFIG_READLINE_COMPLETION
-    int count;
+    uint8_t count;
     char *pre;
     uint16_t word_size;
 
-    const char **list;
+    const char *argv[CONFIG_READLINE_MAX_COMPLETION];
+    uint8_t argl[CONFIG_READLINE_MAX_COMPLETION];
 
     if (rl->cplt.acb) {
         chry_readline_edit_getword(rl, &pre, &word_size);
 
-        if ((count = rl->cplt.acb(rl, pre, word_size, &list)) == 0) {
+        if ((count = rl->cplt.acb(rl, pre, &word_size, argv, argl, CONFIG_READLINE_MAX_COMPLETION)) == 0) {
             /*!< if no completions, return */
             return 0;
         }
@@ -1283,13 +1294,13 @@ int chry_readline_complete(chry_readline_t *rl)
         uint16_t match_size = 0;
         uint16_t extend_size;
         if (count == 1) {
-            match_size = strlen(list[0]);
+            match_size = argl[0];
         } else {
             bool flag = true;
             while (flag) {
                 for (uint16_t i = 0; i < count - 1; i++) {
-                    char c1 = list[i + 0][match_size];
-                    char c2 = list[i + 1][match_size];
+                    char c1 = argv[i + 0][match_size];
+                    char c2 = argv[i + 1][match_size];
                     if ((0 == c1) || (0 == c2) || (c1 != c2)) {
                         flag = false;
                         break;
@@ -1315,7 +1326,7 @@ int chry_readline_complete(chry_readline_t *rl)
                         rl->ln.buff->size - rl->ln.curoff);
             }
 
-            memcpy(&(rl->ln.buff->pbuf[rl->ln.curoff]), &list[0][word_size], extend_size);
+            memcpy(&(rl->ln.buff->pbuf[rl->ln.curoff]), &argv[0][word_size], extend_size);
             rl->ln.curoff += extend_size;
             rl->ln.buff->size += extend_size;
             return chry_readline_edit_refresh(rl);
@@ -1323,7 +1334,7 @@ int chry_readline_complete(chry_readline_t *rl)
 
         uint16_t longest_size = 0;
         for (uint16_t i = 0; i < count; i++) {
-            uint16_t cplt_size = strlen(list[i]);
+            uint16_t cplt_size = argl[i];
             if (cplt_size > longest_size) {
                 longest_size = cplt_size;
             }
@@ -1344,9 +1355,9 @@ int chry_readline_complete(chry_readline_t *rl)
             for (int col = 0; col < col_count; col++) {
                 int idx = (col * row_count) + row;
                 if (idx < count) {
-                    uint16_t cplt_size = strlen(list[idx]);
+                    uint16_t cplt_size = argl[idx];
 
-                    chry_readline_put(rl, (void *)list[idx], cplt_size, -1);
+                    chry_readline_put(rl, (void *)argv[idx], cplt_size, -1);
 
                     if (((col + 1) * row_count) + row < count) {
                         for (int k = cplt_size; k < longest_size; k++) {
@@ -1430,7 +1441,7 @@ __unused static int chry_readline_wait_altscreen(chry_readline_t *rl)
 static char *chry_readline_inernal(chry_readline_t *rl)
 {
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
-    if (rl->noblock) {
+    if (rl->noblock && !rl->block) {
         goto restore;
     }
 #endif
@@ -1478,7 +1489,7 @@ restart:
         chry_readline_getkey(rl, &c);
 
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
-        if (rl->noblock) {
+        if (rl->noblock && !rl->block) {
             return NULL;
         }
 #endif
@@ -1785,7 +1796,7 @@ int chry_readline_altscreen(chry_readline_t *rl, uint8_t enable)
 * @param[in]    sgrraw      sgr attributes, 0 to reset
 * 
 *****************************************************************************/
-static uint8_t chry_readline_sgrset(char *buf, uint16_t sgrraw)
+__unused static uint8_t chry_readline_sgrset(char *buf, uint16_t sgrraw)
 {
     chry_readline_sgr_t sgr = { .raw = sgrraw };
     size_t idx = 0;
@@ -1866,6 +1877,25 @@ void chry_readline_clear(chry_readline_t *rl)
 }
 
 /*****************************************************************************
+* @brief        enable or disable block mode
+* 
+* @param[in]    rl          readline instance
+* @param[in]    enable      block enable
+* 
+*****************************************************************************/
+void chry_readline_block(chry_readline_t *rl, uint8_t enable)
+{
+    CHRY_READLINE_PARAM_CHECK(NULL != rl, );
+
+#if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
+    rl->block = enable ? 1 : 0;
+#else
+    (void)rl;
+    (void)enable;
+#endif
+}
+
+/*****************************************************************************
 * @brief        enable or disable ignore mode
 * 
 * @param[in]    rl          readline instance
@@ -1931,7 +1961,7 @@ char *chry_readline(chry_readline_t *rl, char *linebuff, uint16_t buffsize, uint
     }
 
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
-    if (rl->noblock) {
+    if (rl->noblock && !rl->block) {
         goto restore;
     }
 #endif
@@ -1955,7 +1985,7 @@ restore:
     ret = chry_readline_inernal(rl);
 
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
-    if (rl->noblock) {
+    if (rl->noblock && !rl->block) {
         return (void *)-1;
     }
 #endif
@@ -2041,6 +2071,7 @@ int chry_readline_init(chry_readline_t *rl, chry_readline_init_t *init)
 
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
     rl->noblock = false;
+    rl->block = false;
 #endif
 
     return 0;
@@ -2066,8 +2097,7 @@ void chry_readline_detect(chry_readline_t *rl)
 
     if (c == CHRY_READLINE_C0_ESC) {
         /*!< execute sequence */
-        if (chry_readline_seqexec(rl, &c, pn)) {
-        }
+        chry_readline_seqexec(rl, &c, pn);
     }
 }
 
@@ -2078,7 +2108,7 @@ void chry_readline_detect(chry_readline_t *rl)
 * @param[in]    acb         callback
 * 
 *****************************************************************************/
-void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[]))
+void chry_readline_set_completion_cb(chry_readline_t *rl, uint8_t (*acb)(chry_readline_t *rl, char *pre, uint16_t *size, const char **argv, uint8_t *argl, uint8_t argcmax))
 {
     (void)rl;
     (void)acb;
@@ -2137,6 +2167,7 @@ void chry_readline_set_altmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec)
 #endif
 }
 
+#if defined(CONFIG_READLINE_DEBUG) && CONFIG_READLINE_DEBUG
 /*****************************************************************************
 * @brief        debug for keycode test
 * 
@@ -2179,6 +2210,7 @@ void chry_readline_debug(chry_readline_t *rl)
         }
     }
 }
+#endif
 
 /*****************************************************************************
 * @brief        edit the specified segment of the prompt,

@@ -12,86 +12,13 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-
 #include "chry_readline_keycode.h"
-
-#ifndef CONFIG_READLINE_DEBUG
-#define CONFIG_READLINE_DEBUG 0
-#endif
-
-#ifndef CONFIG_READLINE_DFTROW
-#define CONFIG_READLINE_DFTROW 25
-#endif
-
-#ifndef CONFIG_READLINE_DFTCOL
-#define CONFIG_READLINE_DFTCOL 80
-#endif
-
-#ifndef CONFIG_READLINE_HISTORY
-#define CONFIG_READLINE_HISTORY 1
-#endif
-
-#ifndef CONFIG_READLINE_COMPLETION
-#define CONFIG_READLINE_COMPLETION 1
-#endif
-
-#ifndef CONFIG_READLINE_PROMPTEDIT
-#define CONFIG_READLINE_PROMPTEDIT 1
-#endif
-
-#ifndef CONFIG_READLINE_PROMPTSEG
-#define CONFIG_READLINE_PROMPTSEG 7
-#endif
-
-#ifndef CONFIG_READLINE_XTERM
-#define CONFIG_READLINE_XTERM 0
-#endif
-
-#ifndef CONFIG_READLINE_NEWLINE
-#define CONFIG_READLINE_NEWLINE "\r\n"
-#endif
-
-#ifndef CONFIG_READLINE_SPACE
-#define CONFIG_READLINE_SPACE 4
-#endif
-
-#ifndef CONFIG_READLINE_CTRLMAP
-#define CONFIG_READLINE_CTRLMAP 0
-#endif
-
-#ifndef CONFIG_READLINE_ALTMAP
-#define CONFIG_READLINE_ALTMAP 0
-#endif
-
-#ifndef CONFIG_READLINE_REFRESH_PROMPT
-#define CONFIG_READLINE_REFRESH_PROMPT 1
-#endif
-
-#ifndef CONFIG_READLINE_NOBLOCK
-#define CONFIG_READLINE_NOBLOCK 0
-#endif
+#include "chry_readline_config.h"
 
 #if defined(CONFIG_READLINE_XTERM) && defined(CONFIG_READLINE_NOBLOCK)
 #if CONFIG_READLINE_XTERM && CONFIG_READLINE_NOBLOCK
 #error "CONFIG_READLINE_XTERM cannot be configured at the same time as CONFIG_READLINE_NOBLOCK"
 #endif
-#endif
-
-#ifndef CONFIG_READLINE_HELP
-#define CONFIG_READLINE_HELP                                    \
-    "\r\n"                                                      \
-    "\t+-------------------------------------+\r\n"             \
-    "\t|           \e[1;31mCherry ReadLine \e[m          |\r\n" \
-    "\t|                                     |\r\n"             \
-    "\t| -> CTRL + ^  return normal screen   |\r\n"             \
-    "\t| -> CTRL + -  show this help         |\r\n"             \
-    "\t| -> CTRL + C  abort line             |\r\n"             \
-    "\t| -> CTRL + K  delete cursor to end   |\r\n"             \
-    "\t| -> CTRL + L  clear screen           |\r\n"             \
-    "\t| -> CTRL + U  delete whole line      |\r\n"             \
-    "\t| -> CTRL + W  delete prev word       |\r\n"             \
-    "\t| -> CTRL + Z  abort line             |\r\n"             \
-    "\t+-------------------------------------+\r\n"
 #endif
 
 enum {
@@ -109,7 +36,7 @@ enum {
 
 typedef struct chry_readline {
     char *prompt; /*!< prompt pointer */
-    uint16_t (*sput)(struct chry_readline *rl, void *data, uint16_t size);
+    uint16_t (*sput)(struct chry_readline *rl, const void *data, uint16_t size);
     uint16_t (*sget)(struct chry_readline *rl, void *data, uint16_t size);
 
     struct
@@ -142,7 +69,7 @@ typedef struct chry_readline {
 
 #if defined(CONFIG_READLINE_COMPLETION) && CONFIG_READLINE_COMPLETION
     struct {
-        uint16_t (*acb)(struct chry_readline *rl, char *pre, uint16_t size, const char **plist[]);
+        uint8_t (*acb)(struct chry_readline *rl, char *pre, uint16_t *size, const char **argv, uint8_t *argl, uint8_t argcmax);
     } cplt;
 #endif
 
@@ -177,6 +104,7 @@ typedef struct chry_readline {
 
 #if defined(CONFIG_READLINE_NOBLOCK) && CONFIG_READLINE_NOBLOCK
     uint8_t noblock;
+    uint8_t block;
 #endif
 
 } chry_readline_t;
@@ -186,7 +114,7 @@ typedef struct {
     uint16_t pptsize;  /*!< prompt buffer size */
     char *history;     /*!< history buffer pointer */
     uint16_t histsize; /*!< history buffer size, must be a power of 2 */
-    uint16_t (*sput)(chry_readline_t *rl, void *, uint16_t);
+    uint16_t (*sput)(chry_readline_t *rl, const void *, uint16_t);
     uint16_t (*sget)(chry_readline_t *rl, void *, uint16_t);
 } chry_readline_init_t;
 
@@ -229,12 +157,13 @@ extern void chry_readline_erase_line(chry_readline_t *rl);
 extern void chry_readline_newline(chry_readline_t *rl);
 extern void chry_readline_detect(chry_readline_t *rl);
 extern void chry_readline_clear(chry_readline_t *rl);
+extern void chry_readline_block(chry_readline_t *rl, uint8_t enable);
 extern void chry_readline_ignore(chry_readline_t *rl, uint8_t enable);
 extern void chry_readline_auto_refresh(chry_readline_t *rl, uint8_t enable);
 extern void chry_readline_mask(chry_readline_t *rl, uint8_t enable);
 extern int chry_readline_altscreen(chry_readline_t *rl, uint8_t enable);
 
-extern void chry_readline_set_completion_cb(chry_readline_t *rl, uint16_t (*acb)(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[]));
+extern void chry_readline_set_completion_cb(chry_readline_t *rl, uint8_t (*acb)(chry_readline_t *rl, char *pre, uint16_t *size, const char **argv, uint8_t *argl, uint8_t argcmax));
 extern void chry_readline_set_user_cb(chry_readline_t *rl, int (*ucb)(chry_readline_t *rl, uint8_t exec));
 extern void chry_readline_set_ctrlmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec);
 extern void chry_readline_set_altmap(chry_readline_t *rl, uint8_t mapidx, uint8_t exec);

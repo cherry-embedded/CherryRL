@@ -62,7 +62,7 @@ fatal:
     return -1;
 }
 
-static uint16_t sput(chry_readline_t *rl, void *data, uint16_t size)
+static uint16_t sput(chry_readline_t *rl, const void *data, uint16_t size)
 {
     uint16_t i;
     (void)rl;
@@ -149,24 +149,23 @@ static const char *clist[] = {
 };
 // clang-format on
 
-static uint16_t acb(chry_readline_t *rl, char *pre, uint16_t size, const char **plist[])
+static uint8_t acb(chry_readline_t *rl, char *pre, uint16_t *size, const char **argv, uint8_t *argl, uint8_t argcmax)
 {
-    static const char *list[128];
-    uint16_t count = 0;
-
     (void)rl;
+    uint8_t argc = 0;
 
     for (uint32_t i = 0; i < sizeof(clist) / sizeof(char *); i++) {
-        if (strncmp(pre, clist[i], size) == 0) {
-            list[count++] = clist[i];
-            if (count >= sizeof(list) / sizeof(char *)) {
+        if (strncmp(pre, clist[i], *size) == 0) {
+            argv[argc] = clist[i];
+            argl[argc] = strlen(clist[i]);
+            argc++;
+            if (argc >= argcmax) {
                 break;
             }
         }
     }
 
-    *plist = list;
-    return count;
+    return argc;
 }
 
 int main(int argc, char **argv)
@@ -175,6 +174,7 @@ int main(int argc, char **argv)
     uint8_t keycode = 0;
     uint8_t xterm = 0;
     uint8_t repl = 0;
+    (void)keycode;
 
     while (argc > 1) {
         argc--;
@@ -183,10 +183,12 @@ int main(int argc, char **argv)
             keycode = 1;
         } else if (!strcmp(*argv, "--xterm")) {
             xterm = 1;
+        } else if (!strcmp(*argv, "--autosize")) {
+            xterm = 1;
         } else if (!strcmp(*argv, "--repl")) {
             repl = 1;
         } else {
-            fprintf(stderr, "Usage: %s [--keycodes] [--xterm] [--repl]\n", prgname);
+            fprintf(stderr, "Usage: %s [--keycodes] [--xterm] [--autosize] [--repl]\n", prgname);
             exit(1);
         }
     }
@@ -209,7 +211,7 @@ int main(int argc, char **argv)
 
     char linebuf[128];
     char *line;
-    uint32_t linesize;
+    uint16_t linesize;
 
     memset(prompt, 0xff, 256);
 
@@ -234,18 +236,18 @@ int main(int argc, char **argv)
     memcpy(prompt, "nopptedit:~$ ", sizeof("nopptedit:~$ "));
 #endif
 
+#if CONFIG_READLINE_DEBUG
     if (keycode) {
         chry_readline_debug(&rl);
         disableRawMode(STDIN_FILENO);
         return 0;
     }
+#endif
 
     (void)xterm;
-#if CONFIG_READLINE_XTERM
     if (xterm) {
         chry_readline_detect(&rl);
     }
-#endif
 
     chry_readline_set_completion_cb(&rl, acb);
     chry_readline_set_user_cb(&rl, ucb);

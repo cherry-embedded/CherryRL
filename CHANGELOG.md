@@ -23,3 +23,8 @@ All changes
   - [feat] add EOF_ to EOF;SIGINT_ to SIGINT auto convert
   - [fix] chry_readline arg3 arg4 change uint32_t to uint16_t
   - [feat] add auto_refresh control
+  - [feat] add chry_readline_config.h
+  - [fix] line edit add end '\0'
+  - [feat] add CONFIG_READLINE_MAX_COMPLETION, argv argl is now saved on the stack
+  - [fix] fix sput parameter 2, add const qualifier
+  - [feat] add force block mode by chry_readline_block
